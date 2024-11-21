@@ -72,12 +72,12 @@ def sheets_names(file):
    return sheet_names
 
 
-mdirectory_path = "c:/Users/Julien/Onedrive/Documents/Jul3/"
+mdirectory_path = "c:/Users/Julien/Onedrive/Documents/Jul7/"
 sheet = "Source Profile Information"
-# columns = ["A:F", "A:F"]
+columns = ["A:F", "A:F"]
 cellule_date = "A3"
-# choix = int(input("Quelle feuille ? :"))
-# index = choix - 1
+choix = int(input("Quelle feuille ? :"))
+index = choix - 1
 headers = ["Hotel", "Date", "Note"]
 extract = []
 
@@ -98,7 +98,7 @@ for dir in dir_list:
        extract.append(ligne)
        print(extract)
 
-   csv_file_path = 'c:/Users/Julien/Onedrive/Documents/Jul3/output.csv'
+   csv_file_path = 'c:/Users/Julien/Onedrive/Documents/Jul7/output.csv'
 
    # Écriture des données dans le fichier CSV
    with open(csv_file_path, mode='w', newline='') as file:
