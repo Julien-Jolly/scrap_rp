@@ -1,14 +1,13 @@
-# redondance dans les if.else
+# redondance dans les if.else ---- OK --------
 # refaire commentaires
-# reduire timeout
-# format csv ","
-# chemin d'écriture different selon if.else
+# reduire timeout ---- OK --------
+# format csv "," ---- OK --------
 # 30 et 31 jours ---- A TESTER --------
-# reformatage avec __init__
-# ajout concat autres fichiers
-# voir comment intégrer concat
+# reformatage avec __init__ ---- OK --------
+# ajout concat autres fichiers ---- OK --------
 # gestion mdp ---- OK --------
-# depot git
+# depot git ---- OK --------
+# passer des listes hotel et hotel codeà des dict
 
 from playwright.sync_api import sync_playwright
 import os
@@ -17,30 +16,89 @@ import tkinter as tk
 from tkinter import messagebox
 import shutil
 import mdp
+import concat_book_files
+import convert_format_csv
 
-hotels = ["Amadil Ocean Club Agadir", "Atlas Essaouira Riad Resort", "Atlas Orient",
-         "Atlas Volubilis", "Dunes d’Or Ocean Club Agadir", "Jaal Riad Resort Marrakech", "Kaan Casablanca",
-         "Marina Bay City Center Tanger", "Palais Medina Riad Resort", "Relax Airport", "Relax Casa Voyageurs",
-         "Relax Kenitra", "Relax Marrakech", "Relax Oujda", "Sky Casa Airport Casablanca",
-         "Terminus City Center Oujda", "The View Agadir", "The View Bouznika","The View Rabat"]
+hotels = [
+    "Amadil Ocean Club Agadir",
+    "Atlas Essaouira Riad Resort",
+    "Atlas Orient",
+    "Atlas Volubilis",
+    "Dunes d’Or Ocean Club Agadir",
+    "Jaal Riad Resort Marrakech",
+    "Kaan Casablanca",
+    "Marina Bay City Center Tanger",
+    "Palais Medina Riad Resort",
+    "Relax Airport",
+    "Relax Casa Voyageurs",
+    "Relax Kenitra",
+    "Relax Marrakech",
+    "Relax Oujda",
+    "Sky Casa Airport Casablanca",
+    "Terminus City Center Oujda",
+    "The View Agadir",
+    "The View Bouznika",
+    "The View Rabat",
+]
 
-hotels_code = [107298, 148910, 233862,
-         150056, 161034, 139880, 150687,
-         150495, 148875, 233869, 430592,
-         430598, 430587, 453117, 150665,
-         234184, 110037, 433555, 433554]
+hotels_code = [
+    107298,
+    148910,
+    233862,
+    150056,
+    161034,
+    139880,
+    150687,
+    150495,
+    148875,
+    233869,
+    430592,
+    430598,
+    430587,
+    453117,
+    150665,
+    234184,
+    110037,
+    433555,
+    433554,
+]
+
+hotels_id = [
+    "A009",
+    "A004",
+    "A012",
+    "S004",
+    "S002",
+    "S003",
+    "TBD",
+    "A011",
+    "A002",
+    "A013",
+    "A020",
+    "A016",
+    "A015",
+    "A017",
+    "A007",
+    "A005",
+    "A003",
+    "N002",
+    "N001",
+]
 
 user = os.getenv("USER")
-tmp_folder="/mnt/wslg/distro/tmp/"    ### LINUX FOLDER
-PATH = f"/mnt/c/users/{user}/onedrive/documents/Atlas/Extract ReviewPro/"     ### LINUX FOLDER
-#PATH = f"c:/users/{user}/onedrive/documents/"   ### WINDOWS FOLDER
-#tmp_folder  = os.listdir(f"c:/users/{user}/AppData/Local/Temp/") ### WINDOWS FOLDER
+tmp_folder = "/mnt/wslg/distro/tmp/"  ### LINUX FOLDER
+PATH = (
+    f"/mnt/c/users/{user}/onedrive/documents/Atlas/Extract ReviewPro/"  ### LINUX FOLDER
+)
+# PATH = f"c:/users/{user}/onedrive/documents/"   ### WINDOWS FOLDER
+# tmp_folder  = os.listdir(f"c:/users/{user}/AppData/Local/Temp/") ### WINDOWS FOLDER
 
 option1_path = "Classements/"
 option2_path = "Notes Booking/"
 mois_str = ""
 chemin = PATH
 choix = 1  # 1 = Classements, 2 = Notes booking
+
 
 # Fonction pour valider les entrées
 def valider():
@@ -78,7 +136,7 @@ def record_files(tmp_folder, file_old, hotel):
         file = os.listdir(f"{tmp_folder}{dossier[0]}")
         if attempt % 100000 == 0:
             print(f"    -> attempt n°{attempt} : nouveau contenu {file}")
-        attempt +=1
+        attempt += 1
 
     added_element = set(file) - set(file_old)
     print(f"différence : {added_element}")
@@ -90,7 +148,7 @@ def record_files(tmp_folder, file_old, hotel):
     #     file = os.listdir(f"{tmp_folder}{dossier[-1]}")                                   GARDER POUR WINDOWS
     #     print(f"fichier(s) trouvé(s){file}")                                              GARDER POUR WINDOWS
 
-    #time.sleep(2)
+    # time.sleep(2)
     src = f"{tmp_folder}{dossier[0]}/{str(added_element)}"
     dest = f"{PATH}{option_path}{mois_str}-{years[1]}/{hotel}.xlsx"
     shutil.copy(src, dest)
@@ -100,13 +158,12 @@ def record_files(tmp_folder, file_old, hotel):
 
 def download_files(url, option_path, years, hotel):
 
-    #page.wait_for_timeout(1000)
+    # page.wait_for_timeout(1000)
     page.goto(url)
     page.get_by_role("button", name="Actions").click()
     page.get_by_role("menuitem", name="Télécharger rapport").click()
-    #page.wait_for_timeout(1000)
+    # page.wait_for_timeout(1000)
     page.get_by_role("button", name="Télécharger le rapport").click()
-
 
 
 if __name__ == "__main__":
@@ -128,11 +185,15 @@ if __name__ == "__main__":
     choix_var.set(1)  # Valeur par défaut 1
 
     # Option 1
-    radio_classements = tk.Radiobutton(root, text="Classements", variable=choix_var, value=1)
+    radio_classements = tk.Radiobutton(
+        root, text="Classements", variable=choix_var, value=1
+    )
     radio_classements.pack(pady=5)
 
     # Option 2
-    radio_booking = tk.Radiobutton(root, text="Notes booking", variable=choix_var, value=2)
+    radio_booking = tk.Radiobutton(
+        root, text="Notes booking", variable=choix_var, value=2
+    )
     radio_booking.pack(pady=5)
 
     # Bouton pour valider
@@ -146,32 +207,25 @@ if __name__ == "__main__":
     print(f"Chemin de récupération : {chemin}")
     print(f"Choix sélectionné : {choix}")
 
-    years = ["2023","2024"]
+    years = ["2023", "2024"]
     month_day_start = f"{mois_str}-01"
+    months_30_days = {"04", "06", "09", "11"}
 
-    match mois_str:
-        case "02":
-            day_end="28"
-        case "04":
-            day_end="30"
-        case "06":
-            day_end = "30"
-        case "09":
-            day_end = "30"
-        case "11":
-            day_end="30"
-        case _:
-            day_end="31"
+    if mois_str == "02":
+        day_end = "28"
+    elif mois_str in months_30_days:
+        day_end = "30"
+    else:
+        day_end = "31"
 
     month_day_end = f"{mois_str}-{day_end}"
-
 
     with sync_playwright() as p:
 
         browser = p.chromium.launch(headless=False)
         page = browser.new_page()
 
-        url="https://app.reviewpro.com/login"
+        url = "https://app.reviewpro.com/login"
         page.goto(url)
 
         page.get_by_role("button", name="Accept All").click()
@@ -180,10 +234,10 @@ if __name__ == "__main__":
         page.get_by_label("Password").fill(mdp.mdp)
         page.get_by_role("button", name="Log in").click()
 
-        file_old=()
+        file_old = ()
 
         for i in range(len(hotels)):
-            hotel=hotels[i]
+            hotel = hotels[i]
             hotel_code = hotels_code[i]
 
             if choix == 1:
@@ -198,7 +252,9 @@ if __name__ == "__main__":
 
             if not os.path.exists(f"{PATH}{option_path}{mois_str}-{years[1]}"):
                 os.mkdir(f"{PATH}{option_path}{mois_str}-{years[1]}")
-                print(f"Création du répertoire : {PATH}{option_path}{mois_str}-{years[1]}")
+                print(
+                    f"Création du répertoire : {PATH}{option_path}{mois_str}-{years[1]}"
+                )
 
             if os.path.exists(f"{PATH}{option_path}{mois_str}-{years[1]}/{hotel}.xlsx"):
                 print(f"le fichier {hotel} existe déjà")
@@ -212,3 +268,9 @@ if __name__ == "__main__":
             print("---------------------------------------------------")
 
         browser.close()
+
+    year = years[1]
+    concat_book_files.concat(PATH, option_path, year, mois_str)
+    path = f"{PATH}{option_path}"
+    print(path)
+    convert_format_csv.convert_csv(path, mois_str, year)
