@@ -8,6 +8,7 @@
 # gestion mdp ---- OK --------
 # depot git ---- OK --------
 # passer des listes hotel et hotel codeà des dict
+# integrer messages console dans tkinter
 
 from playwright.sync_api import sync_playwright
 import os
@@ -17,7 +18,9 @@ from tkinter import messagebox
 import shutil
 import mdp
 import concat_book_files
+import concat_classement_files
 import convert_format_csv
+
 
 hotels = [
     "Amadil Ocean Club Agadir",
@@ -85,13 +88,14 @@ hotels_id = [
     "N001",
 ]
 
-user = os.getenv("USER")
-tmp_folder = "/mnt/wslg/distro/tmp/"  ### LINUX FOLDER
+# user = os.getenv("USER")  ### LINUX
+# tmp_folder = "/mnt/wslg/distro/tmp/"  ### LINUX FOLDER
+# PATH = (f"/mnt/c/users/{user}/onedrive/documents/Experienciah/Extract ReviewPro/")  ### LINUX FOLDER
+user = os.getenv("USERNAME")  ### WINDOWS
 PATH = (
-    f"/mnt/c/users/{user}/onedrive/documents/Atlas/Extract ReviewPro/"  ### LINUX FOLDER
+    f"c:/users/{user}/onedrive/documents/Experienciah/Extract ReviewPro/"  ### WINDOWS FOLDER
 )
-# PATH = f"c:/users/{user}/onedrive/documents/"   ### WINDOWS FOLDER
-# tmp_folder  = os.listdir(f"c:/users/{user}/AppData/Local/Temp/") ### WINDOWS FOLDER
+tmp_folder = f"c:/users/{user}/AppData/Local/Temp/"  ### WINDOWS FOLDER
 
 option1_path = "Classements/"
 option2_path = "Notes Booking/"
@@ -125,7 +129,7 @@ def record_files(tmp_folder, file_old, hotel):
 
     time.sleep(3)
     dossier = [dossier for dossier in temp_folder_list if "artifacts" in dossier]
-
+    print(dossier)
     file = os.listdir(f"{tmp_folder}{dossier[0]}")
 
     print(f"ancien contenu {file_old}")
@@ -207,7 +211,7 @@ if __name__ == "__main__":
     print(f"Chemin de récupération : {chemin}")
     print(f"Choix sélectionné : {choix}")
 
-    years = ["2023", "2024"]
+    years = ["2024", "2025"]
     month_day_start = f"{mois_str}-01"
     months_30_days = {"04", "06", "09", "11"}
 
@@ -270,7 +274,11 @@ if __name__ == "__main__":
         browser.close()
 
     year = years[1]
-    concat_book_files.concat(PATH, option_path, year, mois_str)
-    path = f"{PATH}{option_path}"
-    print(path)
-    convert_format_csv.convert_csv(path, mois_str, year)
+    if choix == 2 :
+        concat_book_files.concat(PATH, option_path, year, mois_str)
+        path = f"{PATH}{option_path}"
+        print(path)
+        convert_format_csv.convert_csv(path, mois_str, year)
+    else:
+        concat_classement_files.concat(PATH, option_path, year, mois_str)
+
