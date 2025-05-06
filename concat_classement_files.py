@@ -4,7 +4,6 @@ from datetime import datetime
 import csv
 import main
 
-
 def extract_data_indexes_evolution(file_path, sheet_name, mois_str):
     """Extrait les données de la feuille Indexes Evolution pour le mois spécifié."""
     try:
@@ -67,7 +66,6 @@ def extract_data_indexes_evolution(file_path, sheet_name, mois_str):
         print(f"Erreur lors de l'extraction des données dans {file_path}: {e}")
         return []
 
-
 def extract_data_competition(file_path, sheet_name, mois_str, year, hotel_id):
     """Extrait les données de la feuille Competition pour le mois spécifié avec décalage pour hotel_id."""
     try:
@@ -93,7 +91,9 @@ def extract_data_competition(file_path, sheet_name, mois_str, year, hotel_id):
 
             if hotel_name:
                 # Conserver toutes les 6 colonnes originales et ajouter hotel_id en première position, puis Mois/Année en dernière
-                row_data = [hotel_id] + row_values[:6] + [f"{mois_str}/{year}"]
+                # Formater Mois/Année en jj/mm/aaaa (premier jour du mois)
+                mois_annee = f"01/{mois_str}/{year}"
+                row_data = [hotel_id] + row_values[:6] + [mois_annee]
                 data.append(row_data)
                 print(f"Ligne ajoutée: {row_data}")
             else:
@@ -105,7 +105,6 @@ def extract_data_competition(file_path, sheet_name, mois_str, year, hotel_id):
     except Exception as e:
         print(f"Erreur lors de l'extraction des données dans {file_path}: {e}")
         return []
-
 
 def extract_data_categories_negatively_affecting(file_path, sheet_name, mois_str, year, hotel_id):
     """Extrait les données de la feuille Categories Negatively Affecting pour le mois spécifié avec décalage pour hotel_id."""
@@ -133,7 +132,9 @@ def extract_data_categories_negatively_affecting(file_path, sheet_name, mois_str
 
             if category_name:
                 # Conserver toutes les 6 colonnes originales et ajouter hotel_id en première position, puis Mois/Année en dernière
-                row_data = [hotel_id] + row_values[:6] + [f"{mois_str}/{year}"]
+                # Formater Mois/Année en jj/mm/aaaa (premier jour du mois)
+                mois_annee = f"01/{mois_str}/{year}"
+                row_data = [hotel_id] + row_values[:6] + [mois_annee]
                 data.append(row_data)
                 print(f"Ligne ajoutée: {row_data}")
             else:
@@ -146,7 +147,6 @@ def extract_data_categories_negatively_affecting(file_path, sheet_name, mois_str
         print(f"Erreur lors de l'extraction des données dans {file_path}: {e}")
         return []
 
-
 def list_dir(mdirectory):
     """Liste les fichiers dans un répertoire."""
     try:
@@ -155,7 +155,6 @@ def list_dir(mdirectory):
     except Exception as e:
         print(f"Erreur lors de la lecture du répertoire {mdirectory}: {e}")
         return []
-
 
 def format_value(value):
     """Formate les valeurs pour correspondre au format attendu (virgules pour décimaux)."""
@@ -173,9 +172,39 @@ def format_value(value):
             return value
     return str(value)
 
+def parse_and_format_date(date_str):
+    """Parse et reformate une date en jj/mm/aaaa."""
+    if not date_str or not isinstance(date_str, str):
+        return "01/01/1900"  # Date par défaut si invalide
+    try:
+        # Tenter différents formats possibles
+        for fmt in ("%d/%m/%Y", "%m/%d/%Y", "mmm-yy"):
+            try:
+                if fmt == "mmm-yy":
+                    # Convertir "avr-25" en "01/04/2025"
+                    month_abbr = date_str.split('-')[0].lower()
+                    year = "20" + date_str.split('-')[1]
+                    month_map = {
+                        "jan": "01", "fév": "02", "mar": "03", "avr": "04",
+                        "mai": "05", "jun": "06", "jul": "07", "aoû": "08",
+                        "sep": "09", "oct": "10", "nov": "11", "déc": "12"
+                    }
+                    month = month_map.get(month_abbr, "01")
+                    return f"01/{month}/{year}"
+                else:
+                    dt = datetime.strptime(date_str, fmt)
+                    return dt.strftime("%d/%m/%Y")
+            except ValueError:
+                continue
+        print(f"Format de date non reconnu, valeur brute : {date_str}")
+        return "01/01/1900"  # Date par défaut si aucun format ne correspond
+    except Exception as e:
+        print(f"Erreur lors du parsing de la date {date_str}: {e}")
+        return "01/01/1900"
 
 def concat(PATH, option_path, year, mois_str):
-    """Concatène les données des fichiers téléchargés pour le choix 1 dans des fichiers consolidés par hôtel."""
+    """Concatène les données des fichiers téléchargés pour le choix 1 dans des fichiers individuels par hôtel,
+    puis regroupe tout dans un fichier unique par typologie."""
     mdirectory = f"{PATH}{option_path}{mois_str}-{year}/"
     consolidated_dir_indexes = os.path.join(PATH, "Fait", "Index evolution")
     consolidated_dir_competition = os.path.join(PATH, "Fait", "Competition")
@@ -203,7 +232,7 @@ def concat(PATH, option_path, year, mois_str):
         hotels = main.hotels
         hotels_data = [{"id": hotels_id[i], "name": hotels[i]} for i in range(len(hotels))]
 
-    # Association des fichiers aux hôtels et ajout des données
+    # Étape 1 : Concaténation dans des fichiers individuels par hôtel
     for file_path in file_list:
         try:
             hotel_name = os.path.splitext(os.path.basename(file_path))[0]
@@ -232,11 +261,10 @@ def concat(PATH, option_path, year, mois_str):
                     writer.writerow(headers_indexes)
                 writer.writerows(formatted_data_indexes)
 
-            print(f"Données Indexes ajoutées au fichier consolidé : {consolidated_file_indexes}")
+            print(f"Données Indexes ajoutées au fichier individuel : {consolidated_file_indexes}")
 
             # Extraction des données pour Competition
             data_competition = extract_data_competition(file_path, "Competition", mois_str, year, hotel_id)
-            # Formater les données avec format_value
             formatted_data_competition = []
             for row in data_competition:
                 formatted_row = [format_value(cell) for cell in row]
@@ -250,12 +278,11 @@ def concat(PATH, option_path, year, mois_str):
                     writer.writerow(headers_competition)
                 writer.writerows(formatted_data_competition)
 
-            print(f"Données Competition ajoutées au fichier consolidé : {consolidated_file_competition}")
+            print(f"Données Competition ajoutées au fichier individuel : {consolidated_file_competition}")
 
             # Extraction des données pour Categories Negatively Affecting
             data_categories = extract_data_categories_negatively_affecting(file_path, "Categories Negatively Affecting",
                                                                            mois_str, year, hotel_id)
-            # Formater les données avec format_value
             formatted_data_categories = []
             for row in data_categories:
                 formatted_row = [format_value(cell) for cell in row]
@@ -269,7 +296,7 @@ def concat(PATH, option_path, year, mois_str):
                     writer.writerow(headers_categories)
                 writer.writerows(formatted_data_categories)
 
-            print(f"Données Categories ajoutées au fichier consolidé : {consolidated_file_categories}")
+            print(f"Données Categories ajoutées au fichier individuel : {consolidated_file_categories}")
 
             print(
                 f"Données extraites pour {hotel_name}: {len(data_indexes)} lignes (Indexes), {len(data_competition)} lignes (Competition), {len(data_categories)} lignes (Categories)")
@@ -277,3 +304,75 @@ def concat(PATH, option_path, year, mois_str):
         except Exception as e:
             print(f"Erreur lors du traitement du fichier {file_path}: {e}")
 
+    # Étape 2 : Regroupement dans des fichiers uniques pour chaque typologie
+    # Index Evolution
+    consolidated_unique_indexes = os.path.join(consolidated_dir_indexes, "index_evolution.csv")
+    all_data_indexes = []
+    for file_path in list_dir(consolidated_dir_indexes):
+        if os.path.basename(file_path) != "index_evolution.csv":  # Ignorer le fichier consolidé lui-même
+            try:
+                with open(file_path, mode="r", newline="", encoding="utf-8", errors="replace") as file:
+                    reader = csv.reader(file, delimiter=";")
+                    next(reader)  # Ignorer l'en-tête du fichier individuel
+                    for row in reader:
+                        # Reformater la date (colonne 1 pour Indexes)
+                        if row[1]:
+                            row[1] = parse_and_format_date(row[1])
+                        all_data_indexes.append(row)
+            except Exception as e:
+                print(f"Erreur lors de la lecture du fichier {file_path} pour Index Evolution: {e}")
+
+    with open(consolidated_unique_indexes, mode="w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file, delimiter=";")
+        writer.writerow(headers_indexes)
+        writer.writerows(all_data_indexes)
+
+    print(f"Toutes les données Indexes regroupées dans : {consolidated_unique_indexes}")
+
+    # Competition
+    consolidated_unique_competition = os.path.join(consolidated_dir_competition, "competition.csv")
+    all_data_competition = []
+    for file_path in list_dir(consolidated_dir_competition):
+        if os.path.basename(file_path) != "competition.csv":  # Ignorer le fichier consolidé lui-même
+            try:
+                with open(file_path, mode="r", newline="", encoding="utf-8", errors="replace") as file:
+                    reader = csv.reader(file, delimiter=";")
+                    next(reader)  # Ignorer l'en-tête du fichier individuel
+                    for row in reader:
+                        # Reformater la date (colonne 7 pour Competition)
+                        if row[7]:
+                            row[7] = parse_and_format_date(row[7])
+                        all_data_competition.append(row)
+            except Exception as e:
+                print(f"Erreur lors de la lecture du fichier {file_path} pour Competition: {e}")
+
+    with open(consolidated_unique_competition, mode="w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file, delimiter=";")
+        writer.writerow(headers_competition)
+        writer.writerows(all_data_competition)
+
+    print(f"Toutes les données Competition regroupées dans : {consolidated_unique_competition}")
+
+    # Categories
+    consolidated_unique_categories = os.path.join(consolidated_dir_categories, "categories.csv")
+    all_data_categories = []
+    for file_path in list_dir(consolidated_dir_categories):
+        if os.path.basename(file_path) != "categories.csv":  # Ignorer le fichier consolidé lui-même
+            try:
+                with open(file_path, mode="r", newline="", encoding="utf-8", errors="replace") as file:
+                    reader = csv.reader(file, delimiter=";")
+                    next(reader)  # Ignorer l'en-tête du fichier individuel
+                    for row in reader:
+                        # Reformater la date (colonne 7 pour Categories)
+                        if row[7]:
+                            row[7] = parse_and_format_date(row[7])
+                        all_data_categories.append(row)
+            except Exception as e:
+                print(f"Erreur lors de la lecture du fichier {file_path} pour Categories: {e}")
+
+    with open(consolidated_unique_categories, mode="w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file, delimiter=";")
+        writer.writerow(headers_categories)
+        writer.writerows(all_data_categories)
+
+    print(f"Toutes les données Categories regroupées dans : {consolidated_unique_categories}")

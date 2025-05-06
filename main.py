@@ -7,20 +7,22 @@
 # ajout concat autres fichiers ---- OK --------
 # gestion mdp ---- OK --------
 # depot git ---- OK --------
-# passer des listes hotel et hotel codeà des dict
-# integrer messages console dans tkinter
+# passer des listes hotel et hotel code à des dict
+
+#python main.py --classements
+#python main.py --notes-booking
 
 from playwright.sync_api import sync_playwright
 import os
 import time
-import tkinter as tk
-from tkinter import messagebox
 import shutil
 import mdp
 import concat_book_files
 import concat_classement_files
 import convert_format_csv
-
+import argparse
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 hotels = [
     "Amadil Ocean Club Agadir",
@@ -41,7 +43,6 @@ hotels = [
     "Terminus City Center Oujda",
     "The View Agadir",
     "The View Bouznika",
-    "The View Rabat",
 ]
 
 hotels_code = [
@@ -63,7 +64,6 @@ hotels_code = [
     234184,
     110037,
     433555,
-    433554,
 ]
 
 hotels_id = [
@@ -85,17 +85,13 @@ hotels_id = [
     "A005",
     "A003",
     "N002",
-    "N001",
 ]
 
-# user = os.getenv("USER")  ### LINUX
-# tmp_folder = "/mnt/wslg/distro/tmp/"  ### LINUX FOLDER
-# PATH = (f"/mnt/c/users/{user}/onedrive/documents/Experienciah/Extract ReviewPro/")  ### LINUX FOLDER
-user = os.getenv("USERNAME")  ### WINDOWS
+user = os.getenv("USERNAME")  # WINDOWS
 PATH = (
-    f"c:/users/{user}/onedrive/documents/Experienciah/Extract ReviewPro/"  ### WINDOWS FOLDER
+    f"c:/users/{user}/onedrive/documents/Experienciah/Extract ReviewPro/"  # WINDOWS FOLDER
 )
-tmp_folder = f"c:/users/{user}/AppData/Local/Temp/"  ### WINDOWS FOLDER
+tmp_folder = f"c:/users/{user}/AppData/Local/Temp/"  # WINDOWS FOLDER
 
 option1_path = "Classements/"
 option2_path = "Notes Booking/"
@@ -103,26 +99,46 @@ mois_str = ""
 chemin = PATH
 choix = 1  # 1 = Classements, 2 = Notes booking
 
+# Fonction pour vider le dossier temporaire
+def clear_temp_folder(temp_folder):
+    session_folder = os.path.join(temp_folder, "playwright_session")
+    if os.path.exists(session_folder):
+        try:
+            shutil.rmtree(session_folder)
+            print(f"Dossier {session_folder} vidé avec succès.")
+        except Exception as e:
+            print(f"Erreur lors du vidage du dossier {session_folder} : {e}")
+    else:
+        print(f"Dossier {session_folder} n'existe pas, poursuite sans vidage.")
 
-# Fonction pour valider les entrées
-def valider():
-    global mois_str, chemin, choix  # Déclaration pour modifier les variables globales
-    try:
-        mois = int(entry_mois.get())
-        if mois < 1 or mois > 12:
-            raise ValueError
+# Fonction pour obtenir le mois précédent
+def get_previous_month():
+    current_date = datetime.now()
+    previous_month = current_date - relativedelta(months=1)
+    return f"{previous_month.month:02d}"
 
-        # Conversion du mois au format "XX"
-        mois_str = f"{mois:02d}"
+# Fonction pour valider les entrées via CLI interactive
+def get_user_input():
+    global mois_str, choix
+    while True:
+        try:
+            mois = int(input("Entrez le mois à extraire (entre 1 et 12) : "))
+            if mois < 1 or mois > 12:
+                raise ValueError
+            mois_str = f"{mois:02d}"
+            break
+        except ValueError:
+            print("Erreur : Veuillez entrer un mois valide entre 1 et 12.")
 
-        # Récupération du choix utilisateur
-        choix = choix_var.get()
-
-        root.quit()
-
-    except ValueError:
-        messagebox.showerror("Erreur", "Veuillez entrer un mois valide entre 1 et 12.")
-
+    while True:
+        try:
+            choix_input = input("Choisissez une option (1 = Classements, 2 = Notes booking) : ")
+            choix = int(choix_input)
+            if choix not in [1, 2]:
+                raise ValueError
+            break
+        except ValueError:
+            print("Erreur : Veuillez entrer 1 pour Classements ou 2 pour Notes booking.")
 
 def record_files(tmp_folder, file_old, hotel):
     temp_folder_list = os.listdir(tmp_folder)
@@ -148,64 +164,72 @@ def record_files(tmp_folder, file_old, hotel):
 
     print(f"-> élément téléchargé added_element {added_element}")
 
-    # while not file or any("crdown" in item for item in file) or len(file) > 1:     GARDER POUR WINDOWS
-    #     file = os.listdir(f"{tmp_folder}{dossier[-1]}")                                   GARDER POUR WINDOWS
-    #     print(f"fichier(s) trouvé(s){file}")                                              GARDER POUR WINDOWS
-
-    # time.sleep(2)
     src = f"{tmp_folder}{dossier[0]}/{str(added_element)}"
     dest = f"{PATH}{option_path}{mois_str}-{years[1]}/{hotel}.xlsx"
     shutil.copy(src, dest)
 
     return file
 
-
-def download_files(url, option_path, years, hotel):
-
-    # page.wait_for_timeout(1000)
+def download_files(page, url, option_path, years, hotel, choix):
     page.goto(url)
+    # Vérifier si on est redirigé vers la page de login
+    if "login" in page.url:
+        print(f"Redirection inattendue vers la page de login pour {hotel}. Tentative de reconnexion...")
+        page.goto("https://app.reviewpro.com/login")
+        # Vérifier si le bouton de consentement est présent
+        try:
+            accept_button = page.get_by_role("button", name="Accept All")
+            accept_button.wait_for(timeout=5000)  # Attendre 5 secondes max
+            print("Bouton 'Accept All' trouvé, clic en cours...")
+            accept_button.click()
+        except:
+            try:
+                accept_button = page.get_by_role("button", name="Tout accepter")
+                accept_button.wait_for(timeout=5000)
+                print("Bouton 'Tout accepter' trouvé, clic en cours...")
+                accept_button.click()
+            except:
+                print("Aucun bouton de consentement trouvé, poursuite sans clic.")
+        page.get_by_label("Email").fill(mdp.id)
+        page.get_by_role("button", name="Next").click()
+        page.get_by_label("Password").fill(mdp.mdp)
+        page.get_by_role("button", name="Log in").click()
+        page.wait_for_timeout(5000)  # Attendre 5 secondes après reconnexion
+        page.goto(url)  # Réessayer l'URL
+
     page.get_by_role("button", name="Actions").click()
     page.get_by_role("menuitem", name="Télécharger rapport").click()
-    # page.wait_for_timeout(1000)
-    page.get_by_role("button", name="Télécharger le rapport").click()
+    page.wait_for_timeout(3000)  # Attendre le chargement
 
+    if choix == 2:
+        page.get_by_role("button", name="Télécharger Le Rapport").click()
+    else:
+        page.get_by_role("button", name="Download report").click()
+    page.wait_for_timeout(3000)  # Attendre que le téléchargement commence
 
 if __name__ == "__main__":
+    # Vider le dossier temporaire avant de commencer
+    clear_temp_folder(tmp_folder)
 
-    # Création de la fenêtre principale
-    root = tk.Tk()
-    root.title("Paramètres de récupération")
-    root.geometry("400x300")
+    # Configuration des arguments CLI
+    parser = argparse.ArgumentParser(description="Script pour extraire des rapports ReviewPro.")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--classements", action="store_true", help="Exécuter pour Classements (choix 1) avec le mois précédent")
+    group.add_argument("--notes-booking", action="store_true", help="Exécuter pour Notes booking (choix 2) avec le mois précédent")
+    args = parser.parse_args()
 
-    label_mois = tk.Label(root, text="Mois à extraire (entre 1 et 12) :")
-    label_mois.pack(pady=5)
-    entry_mois = tk.Entry(root)
-    entry_mois.pack(pady=5)
-
-    label_choix = tk.Label(root, text="Choisissez une option :")
-    label_choix.pack(pady=5)
-
-    choix_var = tk.IntVar()  # choix 1 ou 2
-    choix_var.set(1)  # Valeur par défaut 1
-
-    # Option 1
-    radio_classements = tk.Radiobutton(
-        root, text="Classements", variable=choix_var, value=1
-    )
-    radio_classements.pack(pady=5)
-
-    # Option 2
-    radio_booking = tk.Radiobutton(
-        root, text="Notes booking", variable=choix_var, value=2
-    )
-    radio_booking.pack(pady=5)
-
-    # Bouton pour valider
-    btn_valider = tk.Button(root, text="Valider", command=valider)
-    btn_valider.pack(pady=10)
-
-    # Lancement de la boucle principale
-    root.mainloop()
+    # Déterminer le mois et le choix
+    if args.classements:
+        choix = 1
+        mois_str = get_previous_month()  # Mois précédent (ex: "04" pour avril 2025)
+        print(f"Mode Classements sélectionné, mois: {mois_str}")
+    elif args.notes_booking:
+        choix = 2
+        mois_str = get_previous_month()  # Mois précédent (ex: "04" pour avril 2025)
+        print(f"Mode Notes booking sélectionné, mois: {mois_str}")
+    else:
+        # Mode interactif si aucun argument n'est fourni
+        get_user_input()
 
     print(f"Mois à extraire : {mois_str}")
     print(f"Chemin de récupération : {chemin}")
@@ -225,18 +249,40 @@ if __name__ == "__main__":
     month_day_end = f"{mois_str}-{day_end}"
 
     with sync_playwright() as p:
+        # Utiliser un contexte persistant pour maintenir la session
+        context = p.chromium.launch_persistent_context(
+            user_data_dir=f"{tmp_folder}playwright_session",
+            headless=False
+        )
+        page = context.new_page()
 
-        browser = p.chromium.launch(headless=False)
-        page = browser.new_page()
-
+        # Connexion initiale
         url = "https://app.reviewpro.com/login"
         page.goto(url)
-
-        page.get_by_role("button", name="Accept All").click()
+        # Vérifier si le bouton de consentement est présent
+        try:
+            accept_button = page.get_by_role("button", name="Accept All")
+            accept_button.wait_for(timeout=5000)  # Attendre 5 secondes max
+            print("Bouton 'Accept All' trouvé, clic en cours...")
+            accept_button.click()
+        except:
+            try:
+                accept_button = page.get_by_role("button", name="Tout accepter")
+                accept_button.wait_for(timeout=5000)
+                print("Bouton 'Tout accepter' trouvé, clic en cours...")
+                accept_button.click()
+            except:
+                print("Aucun bouton de consentement trouvé, poursuite sans clic.")
         page.get_by_label("Email").fill(mdp.id)
         page.get_by_role("button", name="Next").click()
         page.get_by_label("Password").fill(mdp.mdp)
         page.get_by_role("button", name="Log in").click()
+        # Attendre un élément spécifique ou un délai fixe
+        try:
+            page.wait_for_selector('button:has-text("Actions")', timeout=10000)  # Attendre le bouton "Actions" (10s)
+        except:
+            print("Bouton 'Actions' non trouvé, poursuite avec délai fixe")
+            page.wait_for_timeout(5000)  # Attendre 5 secondes comme solution de secours
 
         file_old = ()
 
@@ -265,20 +311,19 @@ if __name__ == "__main__":
                 print("-------------------------------")
                 continue
 
-            download_files(url, option_path, years, hotel)
+            download_files(page, url, option_path, years, hotel, choix)
             print(f"enregistrement du fichier {hotel}")
             file_old = record_files(tmp_folder, file_old, hotel)
             print(f"extraction et enregistrement de {hotel} terminés")
             print("---------------------------------------------------")
 
-        browser.close()
+        context.close()
 
     year = years[1]
-    if choix == 2 :
+    if choix == 2:
         concat_book_files.concat(PATH, option_path, year, mois_str)
         path = f"{PATH}{option_path}"
         print(path)
         convert_format_csv.convert_csv(path, mois_str, year)
     else:
         concat_classement_files.concat(PATH, option_path, year, mois_str)
-
